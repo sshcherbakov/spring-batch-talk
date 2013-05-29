@@ -4,3 +4,13 @@
 *.jar
 *.war
 *.ear
+
+.classpath
+.gradle/
+.project
+.settings/
+.springBeans
+WebContent/
+bin/
+build/
+
