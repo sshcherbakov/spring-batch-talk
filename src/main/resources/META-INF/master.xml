@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-amqp="http://www.springframework.org/schema/integration/amqp"
+	xsi:schemaLocation="http://www.springframework.org/schema/integration/amqp http://www.springframework.org/schema/integration/amqp/spring-integration-amqp-2.2.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.2.xsd
+		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-3.2.xsd
+		http://www.springframework.org/schema/rabbit http://www.springframework.org/schema/rabbit/spring-rabbit-1.1.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.2.xsd
+		http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd">
+
+		<job id="quotesImportJob" xmlns="http://www.springframework.org/schema/batch">
+
+			<step id="loadSymbolsParallel" next="importQuotesMaster" >
+				<partition step="loadSymbols" partitioner="inputPartitioner">
+					<handler grid-size="8" task-executor="taskExecutor" />
+				</partition>
+			</step>
+
+			<step id="importQuotesMaster" next="buildReport">
+				<partition partitioner="taskPartitioner" handler="taskPartitionHandler"/>
+			</step>
+
+			<step id="buildReport">
+				<tasklet ref="jasperReportTasklet" />
+			</step>
+
+		</job>
+		          
+		<bean id="inputPartitioner" class="org.springframework.batch.core.partition.support.FlatFilePartitioner" scope="step">
+			<property name="resource" value="#{jobParameters['symbolsFile']}" />
+			<property name="linesToSkip" value="1" />
+		</bean>
+
+		<step id="loadSymbols" xmlns="http://www.springframework.org/schema/batch">
+			<tasklet>
+				<chunk reader="fileSymbolItemReader" writer="jdbcSymbolItemWriter" commit-interval="10"/>
+			</tasklet>
+		</step>
+	
+		<bean id="fileSymbolItemReader" class="org.springframework.batch.item.file.MultiThreadedFlatFileItemReader" scope="step">
+	        <property name="lineMapper">
+	            <bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+	                <property name="lineTokenizer">
+	                    <bean class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+	                        <property name="names" value="symbol, name"/>
+	                        <property name="delimiter">
+	                        	<util:constant static-field="org.springframework.batch.item.file.transform.DelimitedLineTokenizer.DELIMITER_TAB"/>
+	                        </property>
+			            	<property name="strict" value="false" />
+	                    </bean>
+	                </property>
+	                <property name="fieldSetMapper">
+	                    <bean class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+	                        <property name="prototypeBeanName" value="symbol"/>
+	                    </bean>
+	                </property>
+	            </bean>
+	        </property>
+	        <property name="resource" value="#{stepExecutionContext['resource']}"/>
+	        <property name="startAt" value="#{stepExecutionContext['startAt']}"/>
+	        <property name="maxItemCount" value="#{stepExecutionContext['itemsCount']}"/>
+		</bean>
+	
+		<bean id="symbol" class="net.shcherbakovs.sb.domain.Symbol" scope="prototype" />	
+
+		<bean id="jdbcSymbolItemWriter" class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+			<property name="assertUpdates" value="true" />
+			<property name="itemSqlParameterSourceProvider">
+				<bean class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+			</property>
+			<property name="sql" value="INSERT SYMBOLS (SYMBOL, NAME) VALUES(:symbol, :companyName)" />
+			<property name="dataSource" ref="dataSource" />
+		</bean>
+	
+		<bean id="taskPartitioner" class="net.shcherbakovs.sb.partition.ColumnRangePartitioner">
+			<property name="dataSource" ref="dataSource"/>
+			<property name="column" value="ID"/>
+			<property name="table" value="SYMBOLS"/>
+		</bean>
+	
+		<bean id="taskPartitionHandler" class="org.springframework.batch.integration.partition.MessageChannelPartitionHandler">
+			<property name="stepName" value="importQuotes"/>
+			<property name="gridSize" value="3"/>
+			<property name="messagingOperations">
+				<bean class="org.springframework.integration.core.MessagingTemplate">
+					<property name="defaultChannel" ref="outboundRequests"/>
+					<property name="receiveTimeout" value="60000000"/>
+				</bean>
+			</property>
+		</bean>
+	
+		<bean id="jasperReportTasklet" class="net.shcherbakovs.sb.tasklet.JasperReportTasklet" scope="step">
+			<property name="dataSource" ref="dataSource" />
+			<property name="reportFile" value="classpath:chart.jrxml" />
+			<property name="outputPdfFile" value="#{jobParameters[outputFile]}" />
+		</bean>
+
+		<!-- Spring Integration components used for remote partitioning -->
+		<task:executor id="taskExecutor" pool-size="20"/>
+		
+		<int:channel id="outboundRequests">
+		    <int:dispatcher task-executor="taskExecutor"/>
+		</int:channel>
+
+		<int-amqp:outbound-gateway request-channel="outboundRequests" 
+								   reply-channel="inboundStaging" 
+								   amqp-template="amqpTemplate" 
+								   mapped-request-headers="correlationId, sequenceNumber, sequenceSize, STANDARD_REQUEST_HEADERS" 
+								   mapped-reply-headers="correlationId, sequenceNumber, sequenceSize, STANDARD_REQUEST_HEADERS"/>
+		
+		<int:channel id="inboundStaging"/>
+
+		<int:aggregator ref="taskPartitionHandler" send-partial-result-on-expiry="true" send-timeout="60000000" input-channel="inboundStaging"/>
+
+		<rabbit:template id="amqpTemplate"
+			connection-factory="amqpConnectionFactory"
+			routing-key="importQuotes.requests"
+			reply-timeout="60000000"
+			reply-queue="importQuotes.replies">
+			<rabbit:reply-listener/>
+		</rabbit:template>
+
+</beans>

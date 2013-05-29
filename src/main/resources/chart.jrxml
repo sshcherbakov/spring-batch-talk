@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="charts" language="groovy" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isIgnorePagination="true" uuid="ce2b6896-d884-441e-813d-6cad306a974c">
+	<property name="ireport.callouts" value="##Tue May 28 17:04:30 CEST 2013"/>
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<subDataset name="dataset1" uuid="9931a9b0-0a08-4938-8dc5-386e0cd6d8a8">
+		<queryString>
+			<![CDATA[select time, AVG(HIGH) as high, AVG(LOW) as low, AVG(OPEN) as open, AVG(CLOSE) as close, AVG(VOLUME) as volume from QUOTES group by time order by time]]>
+		</queryString>
+		<field name="TIME" class="java.util.Date">
+			<fieldDescription><![CDATA[]]></fieldDescription>
+		</field>
+		<field name="CLOSE" class="java.math.BigDecimal">
+			<fieldDescription><![CDATA[]]></fieldDescription>
+		</field>
+		<field name="HIGH" class="java.math.BigDecimal">
+			<fieldDescription><![CDATA[]]></fieldDescription>
+		</field>
+		<field name="LOW" class="java.math.BigDecimal">
+			<fieldDescription><![CDATA[]]></fieldDescription>
+		</field>
+		<field name="VOLUME" class="java.lang.Long"/>
+	</subDataset>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="45" splitType="Stretch">
+			<staticText>
+				<reportElement uuid="9ee7824d-0323-4236-99b8-81b10ee058a8" x="339" y="19" width="123" height="26"/>
+				<textElement textAlignment="Justified" verticalAlignment="Top">
+					<font size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Average values]]></text>
+			</staticText>
+		</band>
+	</title>
+	<summary>
+		<band height="324" splitType="Stretch">
+			<timeSeriesChart>
+				<chart isShowLegend="true">
+					<reportElement uuid="e5f7414e-dd86-4989-a62f-d935a055b2c8" x="0" y="0" width="802" height="324"/>
+					<chartTitle/>
+					<chartSubtitle/>
+					<chartLegend/>
+				</chart>
+				<timeSeriesDataset timePeriod="Month">
+					<dataset>
+						<datasetRun subDataset="dataset1" uuid="d476094d-4d6c-40dc-bdb0-6794d5d47a0c">
+							<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+						</datasetRun>
+					</dataset>
+					<timeSeries>
+						<seriesExpression><![CDATA["Close"]]></seriesExpression>
+						<timePeriodExpression><![CDATA[$F{TIME}]]></timePeriodExpression>
+						<valueExpression><![CDATA[$F{CLOSE}]]></valueExpression>
+					</timeSeries>
+					<timeSeries>
+						<seriesExpression><![CDATA["High"]]></seriesExpression>
+						<timePeriodExpression><![CDATA[$F{TIME}]]></timePeriodExpression>
+						<valueExpression><![CDATA[$F{HIGH}]]></valueExpression>
+					</timeSeries>
+					<timeSeries>
+						<seriesExpression><![CDATA["Low"]]></seriesExpression>
+						<timePeriodExpression><![CDATA[$F{TIME}]]></timePeriodExpression>
+						<valueExpression><![CDATA[$F{LOW}]]></valueExpression>
+					</timeSeries>
+				</timeSeriesDataset>
+				<timeSeriesPlot>
+					<plot>
+						<seriesColor seriesOrder="0" color="#3300FF"/>
+						<seriesColor seriesOrder="1" color="#33FF33"/>
+						<seriesColor seriesOrder="2" color="#FF3300"/>
+						<seriesColor seriesOrder="3" color="#FFFF33"/>
+					</plot>
+					<timeAxisFormat>
+						<axisFormat/>
+					</timeAxisFormat>
+					<valueAxisFormat>
+						<axisFormat/>
+					</valueAxisFormat>
+				</timeSeriesPlot>
+			</timeSeriesChart>
+		</band>
+	</summary>
+</jasperReport>

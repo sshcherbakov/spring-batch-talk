@@ -1,0 +1,116 @@
+apply plugin: 'war'
+apply plugin: 'eclipse-wtp'
+apply plugin: 'eclipse'
+apply plugin: 'tomcat'
+
+sourceCompatibility = 1.7
+version = '1.0'
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'Spring Batch Talk demo project', 'Implementation-Version': version
+    }
+}
+
+repositories {
+    mavenCentral()
+	mavenRepo url:'http://maven.springframework.org/milestone/'
+	mavenRepo url:'http://jasperreports.sourceforge.net/maven2'
+    mavenLocal()
+}
+
+dependencies {
+    compile 'commons-collections:commons-collections:3.2'
+    compile 'org.apache.commons:commons-lang3:3.1'
+    testCompile 'junit:junit:4.+'
+	
+	compile "org.slf4j:slf4j-api:${slf4jVersion}"
+	runtime "org.slf4j:jcl-over-slf4j:${slf4jVersion}"
+	runtime "org.slf4j:slf4j-log4j12:${slf4jVersion}"
+	runtime "log4j:log4j:${log4jVersion}"
+
+	compile "org.springframework:spring-core:${springFrameworkVersion}"
+	compile "org.springframework:spring-jdbc:${springFrameworkVersion}"
+	compile "org.springframework:spring-aop:${springFrameworkVersion}"
+	compile "org.springframework:spring-context:${springFrameworkVersion}"
+	compile "org.springframework:spring-web:${springFrameworkVersion}"
+	compile "org.springframework:spring-webmvc:${springFrameworkVersion}"
+	
+	compile ("org.springframework.batch:spring-batch-core:${springBatchVersion}") {
+		force = true
+	}
+	compile ("org.springframework.batch:spring-batch-infrastructure:${springBatchVersion}") {
+		force = true
+	}
+	compile "org.springframework.batch:spring-batch-admin-manager:${springBatchAdminVersion}"
+	compile "org.springframework.batch:spring-batch-admin-resources:${springBatchAdminVersion}"
+	compile "org.springframework.integration:spring-integration-core:${springIntegrationVersion}"
+	compile "org.springframework.integration:spring-integration-amqp:${springIntegrationVersion}"
+	compile "org.springframework.amqp:spring-rabbit:${springRabbitVersion}"
+	compile "org.cloudfoundry:cloudfoundry-runtime:${cloudFoundryRuntimeVersion}"
+
+	compile "commons-dbcp:commons-dbcp:1.2.2"
+	//compile "com.jayway.restassured:rest-assured:1.8.0"
+	
+	runtime "hsqldb:hsqldb:1.8.0.7"
+	runtime "mysql:mysql-connector-java:5.1.23"
+	runtime "postgresql:postgresql:9.1-901.jdbc4"
+	
+	compile "net.sf.jasperreports:jasperreports:5.1.0"
+	compile "org.codehaus.groovy:groovy-all:2.1.3"
+	//testCompile "org.springframework:spring-test:${springFrameworkVersion}"
+	
+	tomcat "org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}",
+           "org.apache.tomcat.embed:tomcat-embed-logging-juli:${tomcatVersion}"
+    tomcat("org.apache.tomcat.embed:tomcat-embed-jasper:${tomcatVersion}") {
+        exclude group: 'org.eclipse.jdt.core.compiler', module: 'ecj'
+    }
+}
+
+test {
+    systemProperties 'property': 'value'
+}
+
+uploadArchives {
+    repositories {
+       flatDir {
+           dirs 'repos'
+       }
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '1.4'
+}
+
+tomcatRunWar {
+	httpPort = 8080
+	stopPort = 8009
+}
+
+buildscript {
+	repositories {
+	  mavenCentral()
+	  mavenRepo url:'http://maven.springframework.org/milestone/'
+	}
+	dependencies {
+		classpath group: 'org.gradle.api.plugins', name: 'gradle-cf-plugin', version: '0.2.0'
+		classpath 'org.gradle.api.plugins:gradle-tomcat-plugin:0.9.8'
+	}
+}
+
+apply plugin: 'cloudfoundry'
+
+cloudfoundry {
+  username = 'login@domain.com'
+  password = 's3cr3t'
+  application = 'cf-gradle-test'
+  framework = 'spring'
+  file = new File('/path/to/app.war')
+  uris = ['http://appName.cloudfoundry.com']
+}
+
+eclipse {
+	classpath {
+	   downloadSources=true
+	}
+}

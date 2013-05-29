@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-amqp="http://www.springframework.org/schema/integration/amqp"
+	xmlns:cloud="http://schema.cloudfoundry.org/spring"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/integration/amqp http://www.springframework.org/schema/integration/amqp/spring-integration-amqp-2.2.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+		http://schema.cloudfoundry.org/spring http://schema.cloudfoundry.org/spring/cloudfoundry-spring-0.7.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.2.xsd
+		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-3.1.xsd
+		http://www.springframework.org/schema/rabbit http://www.springframework.org/schema/rabbit/spring-rabbit-1.1.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.2.xsd
+		http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd">
+
+	<!-- Command to execute this job.  From the target directory of this project:
+		java -jar spring-batch-talk-1.0.war jobs/quotesJob.xml quotesJob symbolsFile=<LOCATION_OF_INPUT>,outputFile=<LOCATION_OF_OUTPUT>
+	-->
+
+	<beans profile="master">
+
+		<job id="quotesImportJob" xmlns="http://www.springframework.org/schema/batch">
+
+			<step id="loadSymbolsParallel" next="importQuotesMaster" >
+				<partition step="loadSymbols" partitioner="inputPartitioner">
+					<handler grid-size="8" task-executor="taskExecutor" />
+				</partition>
+			</step>
+
+			<step id="importQuotesMaster" next="buildReport">
+				<partition partitioner="taskPartitioner" handler="taskPartitionHandler"/>
+			</step>
+
+			<step id="buildReport">
+				<tasklet ref="jasperReportTasklet" />
+			</step>
+
+		</job>
+		          
+		<bean id="inputPartitioner" class="org.springframework.batch.core.partition.support.FlatFilePartitioner" scope="step">
+			<property name="resource" value="#{jobParameters['symbolsFile']}" />
+			<property name="linesToSkip" value="1" />
+		</bean>
+
+		<step id="loadSymbols" xmlns="http://www.springframework.org/schema/batch">
+			<tasklet>
+				<chunk reader="fileSymbolItemReader" writer="jdbcSymbolItemWriter" commit-interval="10"/>
+			</tasklet>
+		</step>
+	
+		<bean id="fileSymbolItemReader" class="org.springframework.batch.item.file.MultiThreadedFlatFileItemReader" scope="step">
+	        <property name="lineMapper">
+	            <bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+	                <property name="lineTokenizer">
+	                    <bean class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+	                        <property name="names" value="symbol, name"/>
+	                        <property name="delimiter">
+	                        	<util:constant static-field="org.springframework.batch.item.file.transform.DelimitedLineTokenizer.DELIMITER_TAB"/>
+	                        </property>
+			            	<property name="strict" value="false" />
+	                    </bean>
+	                </property>
+	                <property name="fieldSetMapper">
+	                    <bean class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+	                        <property name="prototypeBeanName" value="symbol"/>
+	                    </bean>
+	                </property>
+	            </bean>
+	        </property>
+	        <property name="resource" value="#{stepExecutionContext['resource']}"/>
+	        <property name="startAt" value="#{stepExecutionContext['startAt']}"/>
+	        <property name="maxItemCount" value="#{stepExecutionContext['itemsCount']}"/>
+		</bean>
+	
+		<bean id="symbol" class="net.shcherbakovs.sb.domain.Symbol" scope="prototype" />	
+
+		<bean id="jdbcSymbolItemWriter" class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+			<property name="assertUpdates" value="true" />
+			<property name="itemSqlParameterSourceProvider">
+				<bean class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+			</property>
+			<property name="sql" value="INSERT SYMBOLS (SYMBOL, NAME) VALUES(:symbol, :companyName)" />
+			<property name="dataSource" ref="dataSource" />
+		</bean>
+	
+		<bean id="taskPartitioner" class="net.shcherbakovs.sb.partition.ColumnRangePartitioner">
+			<property name="dataSource" ref="dataSource"/>
+			<property name="column" value="ID"/>
+			<property name="table" value="SYMBOLS"/>
+		</bean>
+	
+		<bean id="taskPartitionHandler" class="org.springframework.batch.integration.partition.MessageChannelPartitionHandler">
+			<property name="stepName" value="importQuotes"/>
+			<property name="gridSize" value="3"/>
+			<property name="messagingOperations">
+				<bean class="org.springframework.integration.core.MessagingTemplate">
+					<property name="defaultChannel" ref="outboundRequests"/>
+					<property name="receiveTimeout" value="60000000"/>
+				</bean>
+			</property>
+		</bean>
+	
+		<bean id="jasperReportTasklet" class="net.shcherbakovs.sb.tasklet.JasperReportTasklet" scope="step">
+			<property name="dataSource" ref="dataSource" />
+			<property name="reportFile" value="classpath:chart.jrxml" />
+			<property name="outputPdfFile" value="#{jobParameters[outputFile]}" />
+		</bean>
+
+		<!-- Spring Integration components used for remote partitioning -->
+		<task:executor id="taskExecutor" pool-size="20"/>
+		
+		<int:channel id="outboundRequests">
+		    <int:dispatcher task-executor="taskExecutor"/>
+		</int:channel>
+
+		<int-amqp:outbound-gateway request-channel="outboundRequests" 
+								   reply-channel="inboundStaging" 
+								   amqp-template="amqpTemplate" 
+								   mapped-request-headers="correlationId, sequenceNumber, sequenceSize, STANDARD_REQUEST_HEADERS" 
+								   mapped-reply-headers="correlationId, sequenceNumber, sequenceSize, STANDARD_REQUEST_HEADERS"/>
+		
+		<int:channel id="inboundStaging"/>
+
+		<int:aggregator ref="taskPartitionHandler" send-partial-result-on-expiry="true" send-timeout="60000000" input-channel="inboundStaging"/>
+
+		<rabbit:template id="amqpTemplate"
+			connection-factory="amqpConnectionFactory"
+			routing-key="importQuotes.requests"
+			reply-timeout="60000000"
+			reply-queue="importQuotes.replies">
+			<rabbit:reply-listener/>
+		</rabbit:template>
+	</beans>
+	
+	<beans profile="master,slave">
+
+		<int-amqp:inbound-gateway concurrent-consumers="3" request-channel="inboundRequests" receive-timeout="60000000" reply-channel="outboundStaging" queue-names="importQuotes.requests" connection-factory="amqpConnectionFactory" mapped-request-headers="correlationId, sequenceNumber, sequenceSize, STANDARD_REQUEST_HEADERS" mapped-reply-headers="correlationId, sequenceNumber, sequenceSize, STANDARD_REQUEST_HEADERS"/>
+	
+		<int:channel id="inboundRequests"/>
+	
+		<int:service-activator ref="stepExecutionRequestHandler" input-channel="inboundRequests" output-channel="outboundStaging"/>
+	
+		<int:channel id="outboundStaging"/>
+	
+		<bean id="stepExecutionRequestHandler" class="org.springframework.batch.integration.partition.StepExecutionRequestHandler">
+			<property name="jobExplorer" ref="jobExplorer"/>
+			<property name="stepLocator" ref="stepLocator"/>
+		</bean>
+	
+		<bean id="stepLocator" class="org.springframework.batch.integration.partition.BeanFactoryStepLocator"/>
+
+		<bean id="importQuotes" class="org.springframework.batch.core.job.flow.FlowStep">
+			<property name="jobRepository" ref="jobRepository" />
+			<property name="flow">
+				<flow id="importQuotesFlow" xmlns="http://www.springframework.org/schema/batch">
+					<step id="downloadQuotes" next="readQuotes">
+						<tasklet>
+							<chunk reader="jdbcSymbolItemReader" writer="symbolHistoryItemWriter" commit-interval="10" />
+						</tasklet>
+					</step>
+					<step id="readQuotes">
+						<tasklet>
+							<chunk reader="barMultiFileItemReader" processor="barItemProcessor" writer="barItemWriter" commit-interval="10" skip-limit="2147483647">  <!--BATCH-1425-->
+								<skippable-exception-classes>
+									<include class="org.springframework.batch.item.file.FlatFileParseException" />
+								</skippable-exception-classes>
+							</chunk>
+						</tasklet>
+						<listeners>
+							<listener ref="fileHistoryReadListener" />
+						</listeners>
+					</step>
+				</flow>
+			</property>
+		</bean>
+	
+		<bean id="fileHistoryReadListener" class="net.shcherbakovs.sb.listener.FileHistoryReadListener" scope="step">
+			<property name="fileItemReader" ref="barMultiFileItemReader" />
+		</bean>
+
+		<bean id="jdbcSymbolItemReader" class="org.springframework.batch.item.database.JdbcPagingItemReader" scope="step">
+			<property name="dataSource" ref="dataSource" />
+			<property name="queryProvider">
+				<bean
+					class="org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean">
+					<property name="dataSource" ref="dataSource" />
+					<property name="selectClause" value="ID, SYMBOL, NAME" />
+					<property name="fromClause" value="FROM SYMBOLS" />
+					<property name="whereClause" value="ID >= :minId AND ID &lt;= :maxId AND INGESTED IS NULL"/>
+					<property name="sortKey" value="ID" />
+				</bean>
+			</property>
+			<property name="pageSize" value="10" />
+			<property name="parameterValues">
+				<map>
+					<entry key="minId" value="#{stepExecutionContext[minValue]}"/>
+					<entry key="maxId" value="#{stepExecutionContext[maxValue]}"/>
+				</map>
+			</property>
+			<property name="rowMapper">
+				<bean class="net.shcherbakovs.sb.domain.SymbolRowMapper"/>
+			</property>
+			<property name="saveState" value="false" />
+		</bean>
+	
+		<bean id="symbolHistoryItemWriter" class="net.shcherbakovs.sb.writer.SymbolHistoryItemWriter" scope="step" />
+	
+		<bean id="barMultiFileItemReader" class="org.springframework.batch.item.file.MultiResourceItemReader" scope="step">
+			<property name="strict" value="true" />
+			<property name="saveState" value="false" />
+			<property name="resources" value="file:#{stepExecutionContext['partition']}/*.csv" />
+			<property name="delegate" ref="barFileItemReader" />
+		</bean>
+
+		<bean id="barMultiFileItemReader2" class="org.springframework.batch.item.file.MultiResourceItemReader" scope="step">
+			<property name="resources" value="file:tmp/#{jobParameters['partition']}/*.csv" />
+			<property name="delegate" ref="barFileItemReader" />
+		</bean>
+		
+		<bean id="barFileItemReader" class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+			<property name="linesToSkip" value="1" />
+			<property name="saveState" value="false" />
+			<property name="lineMapper">
+	            <bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+	                <property name="lineTokenizer">
+	                    <bean class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+	                        <property name="names" value="timestamp, open, high, low, close, volume"/>
+	                    </bean>
+	                </property>
+	                <property name="fieldSetMapper">
+	                    <bean class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+	                        <property name="prototypeBeanName" value="bar"/>
+	                        <property name="customEditors">
+	                            <util:map>
+	                                <entry key="java.math.BigDecimal">
+	                                    <bean class="net.shcherbakovs.util.BigDecimalPropertyEditor"/>
+	                                </entry>
+	                                <entry key="java.lang.Long">
+	                                    <bean class="net.shcherbakovs.util.LongPropertyEditor"/>
+	                                </entry>
+	                            </util:map>
+	                        </property>
+	                    </bean>
+	                </property>
+	            </bean>
+	        </property>
+		</bean>
+		
+		<bean id="bar" class="net.shcherbakovs.sb.domain.Bar" scope="prototype" />
+		
+		<bean id="barItemProcessor" class="net.shcherbakovs.sb.processor.BarItemProcessor" scope="step" />
+		
+		<bean id="barItemWriter" class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+			<property name="assertUpdates" value="true" />
+			<property name="itemSqlParameterSourceProvider">
+				<bean class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+			</property>
+			<property name="sql" value="INSERT QUOTES (SYMBOL, TIME, HIGH, LOW, OPEN, CLOSE, VOLUME) VALUES(:symbol, :timestamp, :high, :low, :open, :close, :volume)" />
+			<property name="dataSource" ref="dataSource" />
+		</bean>
+	</beans>
+</beans>

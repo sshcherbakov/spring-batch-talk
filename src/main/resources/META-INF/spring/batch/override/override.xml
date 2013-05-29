@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:cloud="http://schema.cloudfoundry.org/spring"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+	xsi:schemaLocation="http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.0.xsd
+		http://schema.cloudfoundry.org/spring http://schema.cloudfoundry.org/spring/cloudfoundry-spring-0.7.xsd
+		http://www.springframework.org/schema/rabbit http://www.springframework.org/schema/rabbit/spring-rabbit-1.1.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+	<beans profile="local">
+		<rabbit:connection-factory id="amqpConnectionFactory" host="127.0.0.1" port="5672" username="guest" password="guest"/>
+		<rabbit:admin connection-factory="amqpConnectionFactory" />
+		<rabbit:queue name="importQuotes.replies" />
+		<rabbit:queue name="importQuotes.requests" />
+	</beans>
+		
+	<beans profile="cloud">
+		<cloud:data-source id="dataSource" />
+		<cloud:rabbit-connection-factory id="amqpConnectionFactory"/>
+		<rabbit:admin connection-factory="amqpConnectionFactory" />
+		<rabbit:queue name="importQuotes.replies" />
+		<rabbit:queue name="importQuotes.requests" />
+	</beans>
+
+	<beans profile="master">
+		<jdbc:initialize-database data-source="dataSource" ignore-failures="DROPS">
+			<jdbc:script location="${batch.drop.script}"/>
+			<jdbc:script location="${batch.schema.script}"/>
+			<jdbc:script location="${batch.business.schema.script}"/>
+		</jdbc:initialize-database>
+	</beans>
+	
+</beans>
