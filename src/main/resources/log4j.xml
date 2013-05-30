@@ -12,7 +12,7 @@
 	
 	<!-- Application Loggers -->
 	<logger name="net.shcherbakovs.sb">
-		<level value="debug" />
+		<level value="info" />
 	</logger>
 	
 	<!-- 3rdparty Loggers -->
