@@ -13,7 +13,7 @@ public class BarItemProcessor implements ItemProcessor<Bar, Bar> {
 
 	public static final String SYMBOL = "symbol";
 	
-	private StepExecution stepExecution;  
+	private StepExecution stepExecution;
 	
 	@BeforeStep
 	public void beforeStep(StepExecution stepExecution) {

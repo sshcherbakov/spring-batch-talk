@@ -10,7 +10,7 @@
 		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
 
 	<beans profile="local">
-		<rabbit:connection-factory id="amqpConnectionFactory" host="127.0.0.1" port="5672" username="guest" password="guest"/>
+		<rabbit:connection-factory id="amqpConnectionFactory" host="127.0.0.1" port="50672" username="guest" password="guest"/>
 		<rabbit:admin connection-factory="amqpConnectionFactory" />
 		<rabbit:queue name="importQuotes.replies" />
 		<rabbit:queue name="importQuotes.requests" />

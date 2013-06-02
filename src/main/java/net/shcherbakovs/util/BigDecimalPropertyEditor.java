@@ -19,7 +19,7 @@ public class BigDecimalPropertyEditor extends PropertyEditorSupport {
 			this.setValue(null);
 		}
 		else {
-			String strBd = txt.replace(".","").replace(',', '.');
+			String strBd = txt.replace(",", "");
 			BigDecimal money = new BigDecimal(strBd);
 			this.setValue(money);
 		}

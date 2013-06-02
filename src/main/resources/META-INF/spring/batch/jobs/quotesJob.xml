@@ -11,8 +11,8 @@
 	xmlns:p="http://www.springframework.org/schema/p"
 	xmlns:aop="http://www.springframework.org/schema/aop"
 	xsi:schemaLocation="http://www.springframework.org/schema/integration/amqp http://www.springframework.org/schema/integration/amqp/spring-integration-amqp-2.2.xsd
-		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
 		http://schema.cloudfoundry.org/spring http://schema.cloudfoundry.org/spring/cloudfoundry-spring-0.7.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
 		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.2.xsd
 		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-3.1.xsd
 		http://www.springframework.org/schema/rabbit http://www.springframework.org/schema/rabbit/spring-rabbit-1.1.xsd
@@ -160,18 +160,14 @@
 			<property name="jobRepository" ref="jobRepository" />
 			<property name="flow">
 				<flow id="importQuotesFlow" xmlns="http://www.springframework.org/schema/batch">
-					<step id="downloadQuotes" next="readQuotes">
+					<step id="importQuotes.download" next="importQuotes.read">
 						<tasklet>
-							<chunk reader="jdbcSymbolItemReader" writer="symbolHistoryItemWriter" commit-interval="10" />
+							<chunk reader="jdbcSymbolItemReader" writer="symbolHistoryItemWriter" commit-interval="1" />
 						</tasklet>
 					</step>
-					<step id="readQuotes">
+					<step id="importQuotes.read">
 						<tasklet>
-							<chunk reader="barMultiFileItemReader" processor="barItemProcessor" writer="barItemWriter" commit-interval="10" skip-limit="2147483647">  <!--BATCH-1425-->
-								<skippable-exception-classes>
-									<include class="org.springframework.batch.item.file.FlatFileParseException" />
-								</skippable-exception-classes>
-							</chunk>
+							<chunk reader="barMultiFileItemReader" processor="barItemProcessor" writer="barItemWriter" commit-interval="100" />  <!--BATCH-1425-->
 						</tasklet>
 						<listeners>
 							<listener ref="fileHistoryReadListener" />
@@ -183,6 +179,7 @@
 	
 		<bean id="fileHistoryReadListener" class="net.shcherbakovs.sb.listener.FileHistoryReadListener" scope="step">
 			<property name="fileItemReader" ref="barMultiFileItemReader" />
+			<property name="dataSource" ref="dataSource" />
 		</bean>
 
 		<bean id="jdbcSymbolItemReader" class="org.springframework.batch.item.database.JdbcPagingItemReader" scope="step">
@@ -210,7 +207,9 @@
 			<property name="saveState" value="false" />
 		</bean>
 	
-		<bean id="symbolHistoryItemWriter" class="net.shcherbakovs.sb.writer.SymbolHistoryItemWriter" scope="step" />
+		<bean id="symbolHistoryItemWriter" class="net.shcherbakovs.sb.writer.SymbolHistoryItemWriter" scope="step">
+			<property name="urlTemlpate" value="${urlTemplate}" />
+		</bean>
 	
 		<bean id="barMultiFileItemReader" class="org.springframework.batch.item.file.MultiResourceItemReader" scope="step">
 			<property name="strict" value="true" />

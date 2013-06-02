@@ -25,7 +25,11 @@ import org.springframework.batch.item.ItemWriter;
 public class SymbolHistoryItemWriter implements ItemWriter<Symbol> {
 	private static final Logger log = LoggerFactory.getLogger(SymbolHistoryItemWriter.class);
 
-	private static final String GOOGLE_URL_TEMPLATE = "https://www.google.com/finance/historical?q=NYSE:%s&startdate=Jan+01,+2000&output=csv";
+	private String urlTemplate;
+	
+	public void setUrlTemlpate(String urlTemplate) {
+		this.urlTemplate = urlTemplate;
+	}
 
 	private StepExecution stepExecution;  
 
@@ -39,7 +43,7 @@ public class SymbolHistoryItemWriter implements ItemWriter<Symbol> {
 		File stepDir = new File(stepExecution.getExecutionContext().getString("partition"));
 		stepDir.mkdirs();
 		for(Symbol sym : items) {
-			String url = String.format(GOOGLE_URL_TEMPLATE, sym.getSymbol());
+			String url = String.format(urlTemplate, sym.getSymbol());
 			log.info(String.format("Retrieving %s history data: %s", sym.getSymbol(), url));
 			FileOutputStream fos = null;
 			try {
