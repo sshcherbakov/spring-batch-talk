@@ -4,7 +4,9 @@
 	xmlns:cloud="http://schema.cloudfoundry.org/spring"
 	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
 	xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+	xmlns:aop="http://www.springframework.org/schema/aop"
 	xsi:schemaLocation="http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
 		http://schema.cloudfoundry.org/spring http://schema.cloudfoundry.org/spring/cloudfoundry-spring-0.7.xsd
 		http://www.springframework.org/schema/rabbit http://www.springframework.org/schema/rabbit/spring-rabbit-1.1.xsd
 		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
@@ -24,7 +26,7 @@
 		<rabbit:queue name="importQuotes.requests" />
 	</beans>
 
-	<beans profile="master">
+	<beans profile="init">
 		<jdbc:initialize-database data-source="dataSource" ignore-failures="DROPS">
 			<jdbc:script location="${batch.drop.script}"/>
 			<jdbc:script location="${batch.schema.script}"/>

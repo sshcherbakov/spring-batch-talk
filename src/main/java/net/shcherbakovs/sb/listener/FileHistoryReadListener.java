@@ -47,7 +47,7 @@ public class FileHistoryReadListener {
 		MultiResourceItemReader<Bar> mreader = (MultiResourceItemReader<Bar>) ((Advised)fileItemReader).getTargetSource().getTarget();
 		
 		Resource resource = mreader.getCurrentResource();
-		String symbol = resource.getFilename().split("\\.")[0];
+		String symbol = resource.getFilename().substring(0, resource.getFilename().lastIndexOf('.'));
 		stepExecution.getExecutionContext().put(BarItemProcessor.SYMBOL, symbol);
 		
 		if(prevSymbol != null && !prevSymbol.equals(symbol)) {

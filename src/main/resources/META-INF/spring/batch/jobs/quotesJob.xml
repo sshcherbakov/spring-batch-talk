@@ -217,11 +217,6 @@
 			<property name="resources" value="file:#{stepExecutionContext['partition']}/*.csv" />
 			<property name="delegate" ref="barFileItemReader" />
 		</bean>
-
-		<bean id="barMultiFileItemReader2" class="org.springframework.batch.item.file.MultiResourceItemReader" scope="step">
-			<property name="resources" value="file:tmp/#{jobParameters['partition']}/*.csv" />
-			<property name="delegate" ref="barFileItemReader" />
-		</bean>
 		
 		<bean id="barFileItemReader" class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
 			<property name="linesToSkip" value="1" />
