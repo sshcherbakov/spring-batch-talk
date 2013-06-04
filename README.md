@@ -17,6 +17,7 @@ Clone the git repository using the URL on the Github home page:
     $ ./gradlew clean war
 
 Assuming you have RabbitMQ and MySQL services locally you can run application from the command line
+
     $ ./gradlew tomcatRunWar
 
 # Starting a job
@@ -25,11 +26,11 @@ The application is Java web application packaged as war file. It leverages the S
 
 After the application has been started you can navigate to its home page usually like:
 
-http://localhost:8080/spring-batch-talk
+  http://localhost:8080/spring-batch-talk
 
 Afterwards go to the Jobs tab and enter following into the Launch edit box:
 
-symbolsFile=NYSE.txt,outputFile=sample.pdf
+  symbolsFile=NYSE.txt,outputFile=sample.pdf
 
 The first parameter 'symbolsFile' is the name of the file containing the list of company symbols known. It represents the initial taks description for the demo job. The path is relative to the application classpath. The sample NYSE.txt file is packaged into the war file istelf.
 The second parameter 'outputFile' is the name of the Jasper report file being generated if the job is successful. The path is relative to the application current execution folder.
