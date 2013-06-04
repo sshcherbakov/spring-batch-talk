@@ -4,11 +4,13 @@
 package net.shcherbakovs.sb.writer;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.List;
+import java.util.Scanner;
 
 import net.shcherbakovs.sb.domain.Symbol;
 
@@ -57,8 +59,7 @@ public class SymbolHistoryItemWriter implements ItemWriter<Symbol> {
 			    ReadableByteChannel rbc = Channels.newChannel(website.openStream());
 			    fos.getChannel().transferFrom(rbc, 0, 1 << 24);
 		
-				Assert.isTrue( fos.getChannel().size() > 400, String.format("Unexpected file length %d", fos.getChannel().size()) );
-
+			    validateFile(of);
 				log.info(String.format("%s data stored in %s", sym.getSymbol(), of.getName()));
 			}
 			finally {
@@ -66,6 +67,16 @@ public class SymbolHistoryItemWriter implements ItemWriter<Symbol> {
 					fos.close();
 				}
 			}
+		}
+	}
+	
+	private void validateFile(File file) throws FileNotFoundException {
+		Scanner s = new Scanner(file);
+		try {
+			Assert.isTrue(!s.hasNext("<HTML><HEAD><meta"));
+		}
+		finally {
+			s.close();
 		}
 	}
 }

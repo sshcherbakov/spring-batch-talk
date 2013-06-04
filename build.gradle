@@ -83,8 +83,8 @@ task wrapper(type: Wrapper) {
 }
 
 tomcatRunWar {
-	httpPort = 8080
-	stopPort = 8009
+	httpPort = Integer.parseInt(tomcatHttpPort)
+	stopPort = Integer.parseInt(tomcatStopPort)
 }
 
 buildscript {

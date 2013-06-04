@@ -20,8 +20,11 @@ public class BigDecimalPropertyEditor extends PropertyEditorSupport {
 		}
 		else {
 			String strBd = txt.replace(",", "");
-			BigDecimal money = new BigDecimal(strBd);
-			this.setValue(money);
+			BigDecimal val = new BigDecimal(strBd);
+			if( val.signum() < 0 ) {
+				val = null;
+			}
+			this.setValue(val);
 		}
 	}
 	
