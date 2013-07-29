@@ -11,7 +11,7 @@ Spring Batch framework remote partitioning feature. There is also a presentation
 
 ## Building from Source
 
-The project has a snapshot dependency 1.3.0.BUILD-SNAPSHOT to the spring-batch-admin project. It is needed for the web admin application part to be compatible with the Spring Batch 2.2.0.
+The project has a snapshot dependency to the spring-batch-admin project version 1.3.0.BUILD-SNAPSHOT. It is needed for the web admin application part to be compatible with the Spring Batch 2.2.x.
 
 Thus, before building the project, first build the [Spring Batch Admin](https://github.com/SpringSource/spring-batch-admin) project from source and install artifacts to the local maven repository:
 
