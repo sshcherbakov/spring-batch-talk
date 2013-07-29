@@ -11,13 +11,9 @@ Spring Batch framework remote partitioning feature. There is also a presentation
 
 ## Building from Source
 
-There are two requirements before building the projects. Because of the BATCH-2034 issue which prevented remote flow step from being started. The fix for the issue has been accepted after Spring Batch 2.2.0.RELEASE was out. Therefore, the demo references the Spring Batch 3.0.0.BUILD-SNAPSHOT version. Another snapshot dependency is the 1.3.0.BUILD-SNAPSHOT version of the spring-batch-admin project, which is needed for the web admin application part to be compatible with the Spring Batch 2.2.0.
+The project has a snapshot dependency 1.3.0.BUILD-SNAPSHOT to the spring-batch-admin project. It is needed for the web admin application part to be compatible with the Spring Batch 2.2.0.
 
-Thus, before building the project, first build  [Spring Batch master](https://github.com/SpringSource/spring-batch.git) and [Spring Batch Admin](https://github.com/SpringSource/spring-batch-admin) projects from sources and install artifacts to the local maven repository:
-
-    $ git clone git://github.com/SpringSource/spring-batch.git
-    $ cd spring-batch
-    $ mvn clean install
+Thus, before building the project, first build the [Spring Batch Admin](https://github.com/SpringSource/spring-batch-admin) project from source and install artifacts to the local maven repository:
 
     $ git clone git://github.com/SpringSource/spring-batch-admin.git
     $ cd spring-batch-admin
